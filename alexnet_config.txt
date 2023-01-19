@@ -1,0 +1,30 @@
+imds = imageDatastore('C:\Users\soymarwin\Desktop\clahe','IncludeSubfolders',true,'LabelSource','foldernames');
+%combined datasets of clahe 1 2 cropped (resize)
+
+[imdsTrain,imdsValidation] = splitEachLabel(imds,0.8,'randomized');
+
+net = alexnet;
+
+layersTransfer = net.Layers(1:end-3);
+
+numClasses = numel(categories(imdsTrain.Labels));
+
+layers = [
+layersTransfer
+fullyConnectedLayer(numClasses,'WeightLearnRateFactor',20,'BiasLearnRateFactor',20)
+softmaxLayer
+classificationLayer];
+
+pixelRange = [-30 30];
+
+inputSize = net.Layers(1).InputSize;
+
+imageAugmenter = imageDataAugmenter('RandXReflection',true,'RandXTranslation',pixelRange,'RandYTranslation',pixelRange);
+
+augimdsTrain = augmentedImageDatastore(inputSize(1:2),imdsTrain,'DataAugmentation',imageAugmenter);
+
+augimdsValidation = augmentedImageDatastore(inputSize(1:2),imdsValidation);
+
+options = trainingOptions('adam','MiniBatchSize',5,'MaxEpochs',30,'InitialLearnRate',1e-5,'Shuffle','every-epoch','ValidationData',augimdsValidation,'ValidationFrequency',10,'Verbose',false,'Plots','training-progress','LearnRateSchedule','piecewise');
+
+netTransfer = trainNetwork(augimdsTrain,layers,options);
